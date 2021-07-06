@@ -1,6 +1,6 @@
 #' Classify ASV 
 #' 
-#' @name ClassifyASV
+#' @name classifyASV
 #'
 #' @details A wrapper around the \code{dada2} big data tutorial for classifying
 #'          infered amplicon sequence variants. Before running this function the 
@@ -37,7 +37,7 @@
 #'                        calls the \code{\link[dada2]{plotErrors}} function.
 #'                                                                            
 #'
-ClassifyASV <- function(input_seqtab = input_seqtab, 
+classifyASV <- function(input_seqtab = input_seqtab, 
                         path_to_output_name = "myoutput/",
                         training_set = "silvaDBv138.1/silva_nr99_v138.1_train_set.fa.gz",
                         training_set_species = "silvaDBv138.1/silva_species_assignment_v138.1.fa.gz",

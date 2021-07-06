@@ -13,11 +13,11 @@ Divided into
 This is accomplished by set of three functions.  
 
   * Preprocessing  
-      * 01_preprocessing.R  
+      * `filterTrimReads` *(R/01_preprocessing.R)*  
       
   * Infer Sequence Variants and remove chimera   
-      * 02_inferSequenceVariantsBD.R  
+      * `inferSequenceVariantsBD` *(R/02_inferSequenceVariantsBD.R)*  
       
   * Taxonomic assignments   
-      * 03_taxonomyAssignments.R   
+      * `classifyASV` *(R/03_taxonomyAssignments.R)*   
       

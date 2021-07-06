@@ -27,13 +27,13 @@ Divided into
 This is accomplished by set of three functions.  
 
   * Preprocessing  
-      * 01_preprocessing.R  
+      * `filterTrimReads` *(R/01_preprocessing.R)*  
       
   * Infer Sequence Variants and remove chimera   
-      * 02_inferSequenceVariantsBD.R  
+      * `inferSequenceVariantsBD` *(R/02_inferSequenceVariantsBD.R)*  
       
   * Taxonomic assignments   
-      * 03_taxonomyAssignments.R   
+      * `classifyASV` *(R/03_taxonomyAssignments.R)*   
       
 # Analysis       
 
@@ -70,7 +70,6 @@ filter_tab <- filterTrimReads(path_to_all_files = "raw_data/library_1/",
                               compress=TRUE, 
                               verbose=TRUE, 
                               multithread=TRUE)
-
 
 ```
 
@@ -134,12 +133,12 @@ This has a function called _ClassifyASV_
  
 ```{r}
 source("R/03_taxonomyAssignments.R") 
-# This has a function called 'ClassifyASV'
+# This has a function called 'classifyASV'
 
 # here i run only one library, so will use that as example
 seqtb_nochim <- readRDS("MainOut/library_1_seqtab_nochimera.rds")
 
-ClassifyASV(input_seqtab = seqtb_nochim, 
+classifyASV(input_seqtab = seqtb_nochim, 
             path_to_output_name = "MainOut/",
             training_set = "silvaDBv138.1/silva_nr99_v138.1_train_set.fa.gz",
             training_set_species = "silvaDBv138.1/silva_species_assignment_v138.1.fa.gz",
@@ -178,7 +177,7 @@ ps <- phyloseq(otu_table(st.all, taxa_are_rows=FALSE),
 
 # Testing biomeUtils functionality  
 
-Check percent of classification of ASVs at different taxomic levels.  
+Check percent of classification of ASVs at different taxonomic levels.  
 ```{r}
 source("R/04_biomUtils_test_codes.R")
 # Check how many are classified
