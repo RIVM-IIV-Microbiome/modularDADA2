@@ -1,0 +1,301 @@
+---
+title: "Modular dada2 pipeline"
+author: "Sudarshan"
+date: "`r date()`"
+output: 
+  html_document: 
+    toc: yes
+    toc_depth: 2
+    toc_float: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+# Introduction  
+
+## Steps  
+Converting the dada2 big data workflow into a modular pipeline for analysing multiple sequencing libraries.  
+
+Divided into 
+
+  * Preprocessing  
+  * Infer Sequence Variants and remove chimera  
+  * Taxonomic assignments
+
+## Codes  
+This is accomplished by set of three functions.  
+
+  * Preprocessing  
+      * 01_preprocessing.R  
+      
+  * Infer Sequence Variants and remove chimera   
+      * 02_inferSequenceVariantsBD.R  
+      
+  * Taxonomic assignments   
+      * 03_taxonomyAssignments.R   
+      
+# Analysis       
+
+Test data are located in `raw_data` folder.   
+
+## Required libraries  
+```{r message=FALSE}
+library(dada2)
+library(ggplot2)
+library(tidyverse)
+
+#library(readr)
+```
+
+## Preprocessing   
+To filter and trimm raw reads, run the `01_preprocessing.R`  
+This has a function called _filterTrimReads_ which infers sequence variants.  
+
+```{r}
+# source the function
+source("R/01_preprocessing.R") 
+
+filter_tab <- filterTrimReads(path_to_all_files = "raw_data/library_1/",
+                              plot_qc_profile = TRUE,
+                              fwd_file_pattern = "R1_001.fastq",
+                              rev_file_pattern= "R2_001.fastq",
+                              flag.library.size = 1000,
+                              prefix = "library_1",
+                              truncLen=c(200,150), 
+                              maxEE=c(2,2), 
+                              truncQ=2, 
+                              maxN=0, 
+                              rm.phix=TRUE,
+                              compress=TRUE, 
+                              verbose=TRUE, 
+                              multithread=TRUE)
+
+
+```
+
+Check how many reads were retained.  
+```{r}
+DT::datatable(filter_tab)
+```
+
+
+## Infer Sequence Variants   
+Once raw reads are filtered and trimmed, run the `02_inferSequenceVariantsBD.R`  
+This has a function called _inferSequenceVariantsBD_ which infers sequence variants.  
+```{r}
+source("R/02_inferSequenceVariantsBD.R") 
+
+isv <- inferSequenceVariantsBD(path_to_output_name="MainOut/",
+                               path_fwd_files_filterd = "raw_data/library_1/FWD/filtered",
+                               path_rev_files_filterd = "raw_data/library_1/REV/filtered",
+                               seed_number = 100,
+                               plot_errors = TRUE,
+                               multithread=TRUE,
+                               nbases_for_errors = 1e9,
+                               randomize_for_errors = TRUE,
+                               prefix = "library_1")
+
+
+```
+
+
+Check how the data was processed.  
+```{r}
+
+DT::datatable(isv$isvSummaryTable)
+
+```
+
+Access the seqtab 
+```{r}
+myseqtab <- isv$seqTab
+```
+
+
+## Taxonomic assignments  
+
+After running the `01_preprocessing.R` and `02_inferSequenceVariantsBD.R` per library, there will be several chimera removed `seqtabs` that need to be merged and used for taxonomic classification. 
+```{r}
+# example merge 
+# read your seqtabs
+# seqtb1 <- readRDS("MainOut/Library_1_seqtab_nochimera.rds")
+# seqtb2 <- readRDS("MainOut/Library_2_seqtab_nochimera.rds")
+# seqtb3 <- readRDS("MainOut/Library_3_seqtab_nochimera.rds")
+
+# input_tables <- list(seqtb1, seqtb2, seqtb3)
+# mergetab <- mergeSequenceTables(tables=input_tables,
+#                                tryRC = TRUE) # check for reverse complemet when merging
+
+```
+
+Once the merged seq tab is ready, run the `03_taxonomyAssignments.R`  
+This has a function called _ClassifyASV_
+ 
+```{r}
+source("R/03_taxonomyAssignments.R") 
+# This has a function called 'ClassifyASV'
+
+# here i run only one library, so will use that as example
+seqtb_nochim <- readRDS("MainOut/library_1_seqtab_nochimera.rds")
+
+ClassifyASV(input_seqtab = seqtb_nochim, 
+            path_to_output_name = "MainOut/",
+            training_set = "silvaDBv138.1/silva_nr99_v138.1_train_set.fa.gz",
+            training_set_species = "silvaDBv138.1/silva_species_assignment_v138.1.fa.gz",
+            minBoot=80,
+            multithread = 4,
+            tryRC = TRUE,
+            verbose = TRUE,
+            set.seed=356)
+```
+
+
+The taxonomy files are now located in the location specified by the user in the `path_to_output_name`.  
+
+### Putting it all together  
+Create a phyloseq object.  
+```{r}
+
+library(phyloseq)
+# Non chimeric setab used as input for 'ClassifyASV'
+st.all <- readRDS("MainOut/library_1_seqtab_nochimera.rds")
+
+# Species level taxonomy from 'ClassifyASV'
+taxa_sp <- readRDS("MainOut/taxa_addSpecies.rds") # CHANGE ME
+
+# Add metadata making dummy here for example
+
+metadata <- data.frame(sample_id = rownames(st.all))
+rownames(metadata) <-  metadata$sample_id
+
+ps <- phyloseq(otu_table(st.all, taxa_are_rows=FALSE), 
+               tax_table(taxa_sp),
+               sample_data(metadata))
+
+
+```
+
+# Testing biomeUtils functionality  
+
+Check percent of classification of ASVs at different taxomic levels.  
+```{r}
+source("R/04_biomUtils_test_codes.R")
+# Check how many are classified
+summarizeTaxonomicAssignments(ps)
+
+```
+
+### Tree libs  
+Building a phylogenetic tree  
+```{r}
+library(phangorn)
+library(Biostrings)
+library(DECIPHER)
+library(microbiomeutilities)
+library(ggpubr)
+```
+
+
+### Add refSeq  
+```{r}
+# from microbiomeutilities use add_refseq function
+ps <- microbiomeutilities::add_refseq(ps)
+
+```
+
+### Build Tree 
+
+```{r}
+seqs <- ps@refseq
+
+sp.tree <- buildSeqTree(seqs)
+
+sp.tree$tree
+```
+
+
+```{r}
+ps@phy_tree <- sp.tree$tree
+
+# check is phy_tree is added
+ps
+```
+
+## Calculate QC metrics    
+
+```{r}
+myqc <- calculateQC(ps)
+```
+
+Get sample and taxa qc 
+```{r}
+sampleQC <- myqc$SampleQC
+
+taxaQC <- myqc$TaxaQC
+```
+
+# Testing BiomeViz functionality     
+
+## Library size vs No. of ASVs  
+Check for relation between reads/sample and number of taxa identified.  
+
+```{r fig.height=4, fig.width=6}
+sample_mean_reads = round(mean(sample_sums(ps), na.rm=T), 0)
+
+p1 <- ggplot(sampleQC, aes(sample_total_taxa,sample_total_reads)) +
+  geom_hline(yintercept = sample_mean_reads,
+             lty=2, size=1, color= "brown3") +
+  geom_point(alpha=0.25, size=2, color="grey40") +
+  labs(subtitle = paste0("Mean sequencing depth = ", sample_mean_reads)) +
+  ylab("Reads/Sample") +
+  xlab("Number of taxa detected")  +
+  theme_minimal() +
+  ggpubr::stat_cor(method = "spearman")
+p1
+```
+
+
+## Pevalence vs Taxa counts  
+Check for relation between Pevalence and total counts of taxa.  
+
+```{r fig.height=4, fig.width=6}
+
+p2 <- ggplot(taxaQC, aes(taxa_prevalence,taxa_counts)) +
+  geom_point(alpha=0.25, size=2, color="grey10") +
+  #geom_smooth(size = 1) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::comma) +
+  xlab("Prevalance (%)") +
+  ylab("Taxa abundances") +
+  labs(subtitle = "Low prevalence and high abundace can indicate taxa \nthat have high abundace in few samples")
+p2
+
+```
+
+## Coefficient of variation vs Pevalence    
+```{r fig.height=4, fig.width=6}
+p6 <- ggplot(taxaQC, aes(taxa_prevalence, taxa_cv)) +
+  geom_point(alpha = 0.25, size=3) +
+  theme_minimal() +
+  ylab("C.V") +
+  xlab("Prevalence") +
+  ggpubr::stat_cor(method = "spearman")
+p6
+
+```
+
+Higher prevalence lower C.V. Makes sense as mostly rare/low-abundant taxa contribute to much of the noise in data.  
+
+### Trend in taxonomic assignment
+Check if the more abundance-prevalent taxa have better taxonomic assignments. This is a pre-check, not corrected for differences in sequencing depth. However, it gives an idea if there is a trend for abundance-prevalent taxa to have better taxonomic assignments.  
+
+```{r fig.height=4, fig.width=6}
+p <- trendAbundanceAssignment(ps)
+p + theme_minimal()
+```
+
+Here, ASVs with 50 and 80% prevalence have higher species assignments. 
+and so on.....
+
+
