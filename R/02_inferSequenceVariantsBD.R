@@ -76,6 +76,8 @@ inferSequenceVariantsBD <- function(path_to_output_name=NULL,
   ## Most likely need to change if standard RIVM out is not expected             ##
   
   sample.names <-sapply(strsplit(basename(filtred.fwd.files), "_"), `[`, 1)
+  if(is.na(sample.names)){"Naming of files not in accepted format,
+    052-010_S10_R2_001.fastq.gz"}
   
   #################################################################################
 
