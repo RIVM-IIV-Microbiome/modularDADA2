@@ -75,18 +75,12 @@ inferSequenceVariantsBD <- function(path_to_output_name=NULL,
   #################################################################################
   ## Most likely need to change if standard RIVM out is not expected             ##
   
-  run <-sapply(strsplit(basename(filtred.fwd.files), "_"), `[`, 1)
-  sample <- sapply(strsplit(basename(filtred.fwd.files), "_"), `[`, 2)
-  sample.names <- mapply(paste0, run, sep = "_", sample)
-  sample.namesR <- mapply(paste0, run, sep = "_", sample)
+  sample.names <-sapply(strsplit(basename(filtred.fwd.files), "_"), `[`, 1)
   
   #################################################################################
-  
-  if(!identical(sample.names, sample.namesR)) {
-    stop("Forward and reverse files names do not match.")
-  }
+
   names(filtred.fwd.files) <- sample.names
-  names(filtred.rev.files) <- sample.namesR
+  names(filtred.rev.files) <- sample.names
   
   
   set.seed(seed_number)
